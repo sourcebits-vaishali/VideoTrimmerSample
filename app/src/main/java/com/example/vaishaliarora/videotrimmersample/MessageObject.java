@@ -52,10 +52,6 @@ public class MessageObject {
     private boolean layoutCreated;
 
 
-    public MessageObject(TLRPC.Message message, AbstractMap<Integer, TLRPC.User> users, boolean generateLayout) {
-        this(message, users, null, generateLayout);
-    }
-
     public MessageObject(TLRPC.Message message, AbstractMap<Integer, TLRPC.User> users, AbstractMap<Integer, TLRPC.Chat> chats, boolean generateLayout) {
         if (textPaint == null) {
             textPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
@@ -295,13 +291,6 @@ public class MessageObject {
         return isVideoMessage(messageOwner);
     }
 
-    public boolean isForwarded() {
-        return isForwardedMessage(messageOwner);
-    }
-
-    public static boolean isForwardedMessage(TLRPC.Message message) {
-        return (message.flags & TLRPC.MESSAGE_FLAG_FWD) != 0;
-    }
 
     public boolean isMediaEmpty() {
         return isMediaEmpty(messageOwner);

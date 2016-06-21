@@ -3,6 +3,14 @@
     package="com.example.vaishaliarora.videotrimmersample">
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <supports-screens android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:resizeable="true"
+        android:smallScreens="true"
+        android:xlargeScreens="true"/>
+
+    <uses-feature android:glEsVersion="0x00020000" android:required="false"/>
 
     <application
         android:allowBackup="true"
@@ -18,6 +26,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--<activity android:name=".VideoEditorActivity"/>-->
     </application>
 
 </manifest>

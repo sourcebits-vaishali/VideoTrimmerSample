@@ -1,36 +1,43 @@
-<FrameLayout
+<LinearLayout
+    android:orientation="vertical"
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#ff000000">
-
-    <FrameLayout
-        android:layout_height="match_parent"
+    <LinearLayout
+        android:layout_weight="2"
         android:layout_width="match_parent"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="160dp"
-        android:id="@+id/video_container"
-        android:layout_gravity="top">
-
-        <TextureView
+        android:layout_height="0dp">
+        <FrameLayout
+            android:layout_marginTop="10dp"
             android:layout_height="match_parent"
-            android:layout_width="match_parent"
-            android:layout_gravity="center"
-            android:id="@+id/video_view"/>
+            android:layout_width="wrap_content"
+            android:id="@+id/video_container"
+            android:layout_gravity="center">
 
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="center"
-            android:src="@drawable/video_play"
-            android:layout_gravity="center"
-            android:id="@+id/play_button"/>
+            <TextureView
+                android:layout_height="match_parent"
+                android:layout_width="match_parent"
+                android:layout_gravity="center"
+                android:id="@+id/video_view"/>
 
-    </FrameLayout>
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="center"
+                android:contentDescription="@string/app_name"
+                android:src="@drawable/video_play"
+                android:layout_gravity="center"
+                android:id="@+id/play_button"/>
 
-    <FrameLayout
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="vertical"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:id="@+id/control_layout">
 
         <com.example.vaishaliarora.videotrimmersample.VideoSeekBarView
@@ -44,21 +51,17 @@
         <com.example.vaishaliarora.videotrimmersample.VideoTimelineView
             android:layout_width="match_parent"
             android:layout_height="74dp"
-            android:layout_marginTop="36dp"
+            android:layout_marginTop="20dp"
             android:id="@+id/video_timeline_view"/>
 
-    </FrameLayout>
+    </LinearLayout>
+
 
     <LinearLayout
+        android:gravity="center"
+        android:layout_weight="1"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:background="#ff2d2d2d"
-        android:layout_marginLeft="16dp"
-        android:layout_marginRight="16dp"
-        android:layout_marginBottom="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
+        android:layout_height="0dp"
         android:id="@+id/info_container"
         android:orientation="vertical">
 
@@ -66,7 +69,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#f0f0f0"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
             android:id="@+id/original_title"/>
@@ -75,7 +78,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#bebebe"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
             android:id="@+id/original_size"/>
@@ -84,7 +87,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#f0f0f0"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:layout_marginTop="10dp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
@@ -94,7 +97,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="#bebebe"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
             android:id="@+id/edited_size"/>
@@ -106,19 +109,15 @@
             android:layout_marginRight="8dp"
             android:layout_marginTop="6dp"
             android:textColor="#f0f0f0"
-            android:textSize="15dp"
+            android:textSize="15sp"
             android:id="@+id/compress_video"/>
         <Button
-            android:text="Trim the video"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:layout_marginRight="8dp"
-            android:layout_marginTop="6dp"
             android:textColor="#f0f0f0"
-            android:textSize="15dp"
+            android:textSize="10sp"
             android:id="@+id/trim_video"/>
 
     </LinearLayout>
 
-</FrameLayout>
+</LinearLayout>

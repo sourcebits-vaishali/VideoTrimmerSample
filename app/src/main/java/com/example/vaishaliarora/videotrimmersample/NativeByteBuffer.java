@@ -51,18 +51,6 @@ public class NativeByteBuffer extends AbstractSerializedData {
         }
     }
 
-    public void writeByte(byte b) {
-        try {
-            if (!justCalc) {
-                buffer.put(b);
-            } else {
-                len += 1;
-            }
-        } catch (Exception e) {
-            Log.e("tmessages", "write byte error");
-        }
-    }
-
     public void writeString(String s) {
         try {
             writeByteArray(s.getBytes("UTF-8"));
@@ -171,18 +159,6 @@ public class NativeByteBuffer extends AbstractSerializedData {
             }
         }
         return 0;
-    }
-
-    public void readBytes(byte[] b, boolean exception) {
-        try {
-            buffer.get(b);
-        } catch (Exception e) {
-            if (exception) {
-                throw new RuntimeException("read raw error", e);
-            } else {
-                Log.e("tmessages", "read raw error");
-            }
-        }
     }
 
 

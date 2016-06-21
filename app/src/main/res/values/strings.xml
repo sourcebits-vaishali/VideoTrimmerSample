@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">VideoTrimmerSample</string>
+    <string name="choose">Choose video from gallery</string>
 </resources>

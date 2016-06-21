@@ -38,9 +38,6 @@ public class FileLoader {
         return localInstance;
     }
 
-    public void setMediaDirs(HashMap<Integer, File> dirs) {
-        mediaDirs = dirs;
-    }
 
     public File getDirectory(int type) {
         File dir = mediaDirs.get(type);
@@ -56,9 +53,6 @@ public class FileLoader {
         }
         return dir;
     }
-
-
-
 
     public static File getPathToMessage(TLRPC.Message message) {
         if (message == null) {
@@ -194,7 +188,6 @@ public class FileLoader {
         }
         return "";
     }
-
 
     public static String getAttachFileName(TLObject attach, String ext) {
         if (attach instanceof TLRPC.Document) {

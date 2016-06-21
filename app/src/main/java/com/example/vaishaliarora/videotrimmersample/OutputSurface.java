@@ -43,6 +43,7 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
     private Surface mSurface;
     private final Object mFrameSyncObject = new Object();
     private boolean mFrameAvailable;
+    private TextureRenderer mTextureRender;
     private int mWidth;
     private int mHeight;
     private int rotateRender = 0;
@@ -59,9 +60,19 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
         mPixelBuf.order(ByteOrder.LITTLE_ENDIAN);
         eglSetup(width, height);
         makeCurrent();
+        setup();
     }
 
     public OutputSurface() {
+        setup();
+    }
+
+    private void setup() {
+        mTextureRender = new TextureRenderer(rotateRender);
+        mTextureRender.surfaceCreated();
+        mSurfaceTexture = new SurfaceTexture(mTextureRender.getTextureId());
+        mSurfaceTexture.setOnFrameAvailableListener(this);
+        mSurface = new Surface(mSurfaceTexture);
     }
 
     private void eglSetup(int width, int height) {
@@ -112,6 +123,24 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
         }
     }
 
+    public void release() {
+        if (mEGL != null) {
+            if (mEGL.eglGetCurrentContext().equals(mEGLContext)) {
+                mEGL.eglMakeCurrent(mEGLDisplay, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_SURFACE, EGL10.EGL_NO_CONTEXT);
+            }
+            mEGL.eglDestroySurface(mEGLDisplay, mEGLSurface);
+            mEGL.eglDestroyContext(mEGLDisplay, mEGLContext);
+        }
+        mSurface.release();
+        mEGLDisplay = null;
+        mEGLContext = null;
+        mEGLSurface = null;
+        mEGL = null;
+        mTextureRender = null;
+        mSurface = null;
+        mSurfaceTexture = null;
+    }
+
     public void makeCurrent() {
         if (mEGL == null) {
             throw new RuntimeException("not configured for makeCurrent");
@@ -126,6 +155,9 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
         return mSurface;
     }
 
+    public void changeFragmentShader(String fragmentShader) {
+        mTextureRender.changeFragmentShader(fragmentShader);
+    }
 
     public void awaitNewImage() {
         final int TIMEOUT_MS = 2500;
@@ -142,10 +174,12 @@ public class OutputSurface implements SurfaceTexture.OnFrameAvailableListener {
             }
             mFrameAvailable = false;
         }
+        mTextureRender.checkGlError("before updateTexImage");
         mSurfaceTexture.updateTexImage();
     }
 
     public void drawImage(boolean invert) {
+        mTextureRender.drawFrame(mSurfaceTexture, invert);
     }
 
     @Override

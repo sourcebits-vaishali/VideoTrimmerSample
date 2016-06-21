@@ -12,16 +12,10 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
 import android.graphics.SurfaceTexture;
-import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
-import android.media.ThumbnailUtils;
-import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.Surface;
@@ -44,15 +38,12 @@ import com.googlecode.mp4parser.util.Matrix;
 import com.googlecode.mp4parser.util.Path;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 
 
 @TargetApi(16)
-public class VideoEditorActivity extends Activity implements TextureView.SurfaceTextureListener/*, NotificationCenter.NotificationCenterDelegate*/ {
+public class VideoEditorActivity extends Activity implements TextureView.SurfaceTextureListener {
 
     private boolean created = false;
     private MediaPlayer videoPlayer = null;
@@ -156,12 +147,16 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
         setContentView(R.layout.video_editor_layout);
 
         if (created) {
-            return ;
+            return;
         }
-        videoPath = Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/sample2.mp4";
-        Log.d("Vaishali ","Path == "+videoPath);
+        Bundle bundle = getIntent().getExtras();
+//        videoPath = bundle.getString(Util.VIDEO_PATH);
+        videoPath = "/storage/emulated/0/DCIM/Camera/20160621_112826.mp4";
+//        videoPath = Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/sample2.mp4";
+
+        Log.d("Vaishali ", "Path == " + videoPath);
         if (videoPath == null || !processOpenVideo()) {
-            return ;
+            return;
         }
         videoPlayer = new MediaPlayer();
         videoPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
@@ -192,8 +187,8 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
             Log.e("tmessages", e.getMessage());
         }
 
-        originalSizeTextView = (TextView)findViewById(R.id.original_size);
-        editedSizeTextView = (TextView)findViewById(R.id.edited_size);
+        originalSizeTextView = (TextView) findViewById(R.id.original_size);
+        editedSizeTextView = (TextView) findViewById(R.id.edited_size);
         videoContainerView = findViewById(R.id.video_container);
         textContainerView = findViewById(R.id.info_container);
         controlView = findViewById(R.id.control_layout);
@@ -303,20 +298,21 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
 
         updateVideoOriginalInfo();
         updateVideoEditedInfo();
-        fixLayoutInternal();
+//        fixLayoutInternal();
 
         (findViewById(R.id.trim_video)).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
-                trimVideo(videoPath, startTime, endTime, originalWidth, originalHeight, rotationValue, originalWidth, originalHeight, originalBitrate, estimatedSize, esimatedDuration);
+                int resWidth = compressVideo.isChecked() ? resultWidth : originalWidth;
+                int resHeight =  compressVideo.isChecked() ? resultHeight : originalHeight;
+                trimVideo(videoPath, startTime, endTime, resWidth,resHeight,  rotationValue, originalWidth, originalHeight, originalBitrate, estimatedSize, esimatedDuration);
 
             }
         });
 
     }
 
-    private void trimVideo(String videoPath, long startTime, long endTime, int resultWidth, int resultHeight, int rotationValue, int originalWidth, int originalHeight, int bitrate, long estimatedSize, long estimatedDuration){
+    private void trimVideo(String videoPath, long startTime, long endTime, int resultWidth, int resultHeight, int rotationValue, int originalWidth, int originalHeight, int bitrate, long estimatedSize, long estimatedDuration) {
         VideoEditedInfo videoEditedInfo = new VideoEditedInfo();
         videoEditedInfo.startTime = startTime;
         videoEditedInfo.endTime = endTime;
@@ -327,8 +323,13 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
         videoEditedInfo.resultWidth = resultWidth;
         videoEditedInfo.resultHeight = resultHeight;
         videoEditedInfo.originalPath = videoPath;
-        prepareSendingVideo(videoPath, estimatedSize, estimatedDuration, resultWidth, resultHeight, videoEditedInfo);
 
+        DelayedMessage delayedMessage = new DelayedMessage();
+        delayedMessage.originalPath = videoPath;
+        delayedMessage.type = 1;
+
+        delayedMessage.videoEditedInfo = videoEditedInfo;
+        MediaController.getInstance().scheduleVideoConvert(delayedMessage);
     }
 
     @Override
@@ -730,288 +731,6 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
     }
 
 
-    static String path = "";
-    public static void prepareSendingVideo(final String videoPath, final long estimatedSize, final long duration, final int width, final int height, final VideoEditedInfo videoEditedInfo) {
-        if (videoPath == null || videoPath.length() == 0) {
-            return;
-        }
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-
-                HashMap<Integer, File> mediaDirs = new HashMap<>();
-                File cachePath = AndroidUtilities.getCacheDir();
-                if (!cachePath.isDirectory()) {
-                    try {
-                        cachePath.mkdirs();
-                    } catch (Exception e) {
-                        Log.e("tmessages", e.getMessage());
-                    }
-                }
-                try {
-                    new File(cachePath, ".nomedia").createNewFile();
-                } catch (Exception e) {
-                    Log.e("tmessages", e.getMessage());
-                }
-                mediaDirs.put(FileLoader.MEDIA_DIR_CACHE, cachePath);
-                FileLoader.getInstance().setMediaDirs(mediaDirs);
-
-                if (videoEditedInfo != null || videoPath.endsWith("mp4")) {
-                    path = videoPath;
-                    String originalPath = videoPath;
-                    File temp = new File(originalPath);
-                    originalPath += temp.length() + "_" + temp.lastModified();
-                    if (videoEditedInfo != null) {
-                        originalPath += duration + "_" + videoEditedInfo.startTime + "_" + videoEditedInfo.endTime;
-                        if (videoEditedInfo.resultWidth == videoEditedInfo.originalWidth) {
-                            originalPath += "_" + videoEditedInfo.resultWidth;
-                        }
-                    }
-                    TLRPC.TL_document document = null;
-
-                    if (document == null) {
-                        Bitmap thumb = ThumbnailUtils.createVideoThumbnail(videoPath, MediaStore.Video.Thumbnails.MINI_KIND);
-                        TLRPC.PhotoSize size = scaleAndSaveImage(thumb, 90, 90, 55);
-                        document = new TLRPC.TL_document();
-                        document.thumb = size;
-                        if (document.thumb == null) {
-                            document.thumb = new TLRPC.TL_photoSizeEmpty();
-                            document.thumb.type = "s";
-                        } else {
-                            document.thumb.type = "s";
-                        }
-                        document.mime_type = "video/mp4";
-
-                        TLRPC.TL_documentAttributeVideo attributeVideo = new TLRPC.TL_documentAttributeVideo();
-                        document.attributes.add(attributeVideo);
-                        if (videoEditedInfo != null) {
-                            attributeVideo.duration = (int) (duration / 1000);
-                            if (videoEditedInfo.rotationValue == 90 || videoEditedInfo.rotationValue == 270) {
-                                attributeVideo.w = height;
-                                attributeVideo.h = width;
-                            } else {
-                                attributeVideo.w = width;
-                                attributeVideo.h = height;
-                            }
-                            document.size = (int) estimatedSize;
-                            String fileName = "Vaishali" + "_1"  + ".mp4";
-//                            File cacheFile = new File(Environment.getExternalStorageDirectory().getPath()+"/DCIM/"+fileName);
-
-                            File cacheFile = new File(FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE), fileName);
-
-                            path = cacheFile.getAbsolutePath();
-                        } else {
-                            if (temp.exists()) {
-                                document.size = (int) temp.length();
-                            }
-                            boolean infoObtained = false;
-                            if (Build.VERSION.SDK_INT >= 14) {
-                                MediaMetadataRetriever mediaMetadataRetriever = null;
-                                try {
-                                    mediaMetadataRetriever = new MediaMetadataRetriever();
-                                    mediaMetadataRetriever.setDataSource(videoPath);
-                                    String width = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH);
-                                    if (width != null) {
-                                        attributeVideo.w = Integer.parseInt(width);
-                                    }
-                                    String height = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT);
-                                    if (height != null) {
-                                        attributeVideo.h = Integer.parseInt(height);
-                                    }
-                                    String duration = mediaMetadataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-                                    if (duration != null) {
-                                        attributeVideo.duration = (int) Math.ceil(Long.parseLong(duration) / 1000.0f);
-                                    }
-                                    infoObtained = true;
-                                } catch (Exception e) {
-                                    Log.e("tmessages", e.getMessage());
-                                } finally {
-                                    try {
-                                        if (mediaMetadataRetriever != null) {
-                                            mediaMetadataRetriever.release();
-                                        }
-                                    } catch (Exception e) {
-                                        Log.e("tmessages", e.getMessage());
-                                    }
-                                }
-                            }
-                            if (!infoObtained) {
-                                try {
-                                    MediaPlayer mp = MediaPlayer.create(MyApplication.applicationContext, Uri.fromFile(new File(videoPath)));
-                                    if (mp != null) {
-                                        attributeVideo.duration = (int) Math.ceil(mp.getDuration() / 1000.0f);
-                                        attributeVideo.w = mp.getVideoWidth();
-                                        attributeVideo.h = mp.getVideoHeight();
-                                        mp.release();
-                                    }
-                                } catch (Exception e) {
-                                    Log.e("tmessages", e.getMessage());
-                                }
-                            }
-                        }
-                    }
-                    final TLRPC.TL_document videoFinal = document;
-                    final String finalPath = path;
-                    final HashMap<String, String> params = new HashMap<>();
-                    if (originalPath != null) {
-                        params.put("originalPath", originalPath);
-                    }
-                    AndroidUtilities.createMediaPaths();
-                    AndroidUtilities.runOnUIThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            sendMessage(null, videoEditedInfo, videoFinal, finalPath,false, null,params);
-                        }
-                    });
-                }
-            }
-        }).start();
-    }
-
-    private static void sendMessage(String message, VideoEditedInfo videoEditedInfo, TLRPC.TL_document document, String path, boolean searchLinks, MessageObject retryMessageObject, HashMap<String, String> params) {
-
-        String originalPath = null;
-        if (params != null && params.containsKey("originalPath")) {
-            originalPath = params.get("originalPath");
-        }
-
-        TLRPC.Message newMsg = null;
-        MessageObject newMsgObj = null;
-        int type = -1;
-
-
-        try {
-
-            if (document != null) {
-                {
-                    newMsg = new TLRPC.TL_message();
-                }
-                newMsg.media = new TLRPC.TL_messageMediaDocument();
-                newMsg.media.caption = document.caption != null ? document.caption : "";
-                newMsg.media.document = document;
-                if (params != null && params.containsKey("query_id")) {
-                    type = 9;
-                } else if (MessageObject.isVideoDocument(document)) {
-                    type = 3;
-                }
-                if (videoEditedInfo == null) {
-                    newMsg.message = "-1";
-                } else {
-                    newMsg.message = videoEditedInfo.getString();
-                }
-                {
-                    newMsg.attachPath = path;
-                }
-
-            }
-            if (newMsg.attachPath == null) {
-                newMsg.attachPath = "";
-            }
-            newMsg.out = true;
-
-
-            newMsg.params = params;
-            newMsg.flags |= TLRPC.MESSAGE_FLAG_HAS_MEDIA;
-
-            newMsg.unread = true;
-            {
-                newMsg.to_id = new TLRPC.TL_peerUser();
-
-                if (newMsg.ttl != 0) {
-                    if (MessageObject.isVideoMessage(newMsg)) {
-                        int duration = 0;
-                        for (int a = 0; a < newMsg.media.document.attributes.size(); a++) {
-                            TLRPC.DocumentAttribute attribute = newMsg.media.document.attributes.get(a);
-                            if (attribute instanceof TLRPC.TL_documentAttributeVideo) {
-                                duration = attribute.duration;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-
-            newMsg.send_state = MessageObject.MESSAGE_SEND_STATE_SENDING;
-            newMsgObj = new MessageObject(newMsg, null, true);
-            if (!newMsgObj.isForwarded() && newMsgObj.type == 3) {
-                newMsgObj.attachPathExists = true;
-            }
-
-            ArrayList<MessageObject> objArr = new ArrayList<>();
-            objArr.add(newMsgObj);
-            ArrayList<TLRPC.Message> arr = new ArrayList<>();
-            arr.add(newMsg);
-
-            if (type == 0 || type == 9 && message != null) {
-                {
-                    {
-                        TLRPC.TL_messages_sendMessage reqSend = new TLRPC.TL_messages_sendMessage();
-                        reqSend.message = message;
-                        if (newMsg.to_id instanceof TLRPC.TL_peerChannel) {
-                            reqSend.silent = MyApplication.applicationContext.getSharedPreferences("Notifications", Activity.MODE_PRIVATE).getBoolean("silent_" + 0, false);
-                        }
-                        reqSend.random_id = newMsg.random_id;
-
-                        if (!searchLinks) {
-                            reqSend.no_webpage = true;
-                        }
-
-                    }
-                }
-            } else if (type >= 1 && type <= 3 || type >= 5 && type <= 8 || type == 9 ) {
-                TLRPC.InputMedia inputMedia = null;
-                DelayedMessage delayedMessage = null;
-                if (type == 3) {
-                    if (document.access_hash == 0) {
-                        if (document.thumb.location != null) {
-                            inputMedia = new TLRPC.TL_inputMediaUploadedThumbDocument();
-                        } else {
-                            inputMedia = new TLRPC.TL_inputMediaUploadedDocument();
-                        }
-                        inputMedia.caption = document.caption != null ? document.caption : "";
-                        inputMedia.mime_type = document.mime_type;
-                        inputMedia.attributes = document.attributes;
-                        delayedMessage = new DelayedMessage();
-                        delayedMessage.originalPath = originalPath;
-                        delayedMessage.type = 1;
-                        delayedMessage.obj = newMsgObj;
-                        delayedMessage.location = document.thumb.location;
-                        delayedMessage.documentLocation = document;
-                        delayedMessage.videoEditedInfo = videoEditedInfo;
-                    } else {
-                        TLRPC.TL_inputMediaDocument media = new TLRPC.TL_inputMediaDocument();
-                        media.id = new TLRPC.TL_inputDocument();
-                        media.caption = document.caption != null ? document.caption : "";
-                        media.id.id = document.id;
-                        media.id.access_hash = document.access_hash;
-                        inputMedia = media;
-                    }
-                }
-
-                TLObject reqSend;
-                TLRPC.TL_messages_sendMedia request = new TLRPC.TL_messages_sendMedia();
-                request.random_id = newMsg.random_id;
-                request.media = inputMedia;
-                if (delayedMessage != null) {
-                    delayedMessage.sendRequest = request;
-                }
-
-                if (type == 3) {
-                    if (document.access_hash == 0) {
-                        performSendDelayedMessage(delayedMessage);
-                    }
-                }
-                reqSend = request;
-            }
-        }
-        catch (Exception e) {
-            Log.e("tmessages", e.getMessage());
-            if (newMsgObj != null) {
-                newMsgObj.messageOwner.send_state = MessageObject.MESSAGE_SEND_STATE_SEND_ERROR;
-            }
-        }
-    }
     protected static class DelayedMessage {
         public TLObject sendRequest;
         public TLRPC.TL_decryptedMessage sendEncryptedRequest;
@@ -1024,155 +743,4 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
         public TLRPC.EncryptedChat encryptedChat;
         public VideoEditedInfo videoEditedInfo;
     }
-
-    private static void performSendDelayedMessage(final DelayedMessage message) {
-        if (message.type == 1) {
-
-            if (message.type == 1) {
-                if (message.videoEditedInfo != null) {
-                    String location = message.obj.messageOwner.attachPath;
-                    long id = message.documentLocation.id;
-                    if (location == null) {
-                        location = FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + id+ ".mp4";
-                    }
-                    MediaController.getInstance().scheduleVideoConvert(message , id);
-                } else {
-                    if (message.sendRequest != null) {
-                        TLRPC.InputMedia media;
-                        if (message.sendRequest instanceof TLRPC.TL_messages_sendMedia) {
-                            media = ((TLRPC.TL_messages_sendMedia) message.sendRequest).media;
-                        } else {
-                            media = ((TLRPC.TL_messages_sendBroadcast) message.sendRequest).media;
-                        }
-                        if (media.file == null) {
-                            String location = message.obj.messageOwner.attachPath;
-                            if (location == null) {
-                                location = FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + message.documentLocation.id + ".mp4";
-                            }
-
-                        } else {
-                            String location = FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + message.location.volume_id + "_" + message.location.local_id + ".jpg";
-//                            putToDelayedMessages(location, message);
-//                            FileLoader.getInstance().uploadFile(location, false, true);
-                        }
-                    } else {
-                        String location = message.obj.messageOwner.attachPath;
-                        if (location == null) {
-                            location = FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + message.documentLocation.id + ".mp4";
-                        }
-//                        putToDelayedMessages(location, message);
-                        if (message.obj.videoEditedInfo != null) {
-//                            FileLoader.getInstance().uploadFile(location, true, false, message.documentLocation.size);
-                        } else {
-//                            FileLoader.getInstance().uploadFile(location, true, false);
-                        }
-                    }
-                }
-            }
-        }  else if (message.type == 3) {
-
-
-            if (message.videoEditedInfo != null) {
-                String location = message.obj.messageOwner.attachPath;
-                if (location == null) {
-                    location = FileLoader.getInstance().getDirectory(FileLoader.MEDIA_DIR_CACHE) + "/" + message.documentLocation.id + ".mp4";
-                }
-                long loc = message.documentLocation.id;
-//                putToDelayedMessages(location, message);
-                MediaController.getInstance().scheduleVideoConvert(message, loc);
-
-
-            }
-        }
-    }
-
-
-    public static TLRPC.PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight, int quality) {
-        return scaleAndSaveImage(bitmap, maxWidth, maxHeight, quality, 0, 0);
-    }
-
-    public static TLRPC.PhotoSize scaleAndSaveImage(Bitmap bitmap, float maxWidth, float maxHeight, int quality, int minWidth, int minHeight) {
-        if (bitmap == null) {
-            return null;
-        }
-        float photoW = bitmap.getWidth();
-        float photoH = bitmap.getHeight();
-        if (photoW == 0 || photoH == 0) {
-            return null;
-        }
-        boolean scaleAnyway = false;
-        float scaleFactor = Math.max(photoW / maxWidth, photoH / maxHeight);
-        if (minWidth != 0 && minHeight != 0 && (photoW < minWidth || photoH < minHeight)) {
-            if (photoW < minWidth && photoH > minHeight) {
-                scaleFactor = photoW / minWidth;
-            } else if (photoW > minWidth && photoH < minHeight) {
-                scaleFactor = photoH / minHeight;
-            } else {
-                scaleFactor = Math.max(photoW / minWidth, photoH / minHeight);
-            }
-            scaleAnyway = true;
-        }
-        int w = (int) (photoW / scaleFactor);
-        int h = (int) (photoH / scaleFactor);
-        if (h == 0 || w == 0) {
-            return null;
-        }
-
-        try {
-            return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality, scaleAnyway);
-        } catch (Throwable e) {
-            Log.e("tmessages", e.getMessage());
-//            ImageLoader.getInstance().clearMemory();
-            System.gc();
-            try {
-                return scaleAndSaveImageInternal(bitmap, w, h, photoW, photoH, scaleFactor, quality, scaleAnyway);
-            } catch (Throwable e2) {
-                Log.e("tmessages", e2.getMessage());
-                return null;
-            }
-        }
-    }
-
-
-    private static TLRPC.PhotoSize scaleAndSaveImageInternal(Bitmap bitmap, int w, int h, float photoW, float photoH, float scaleFactor, int quality, boolean scaleAnyway)
-            throws Exception {
-        Bitmap scaledBitmap;
-      /*  if (scaleFactor > 1 || scaleAnyway) {
-            scaledBitmap = Bitmaps.createScaledBitmap(bitmap, w, h, true);
-        } else */{
-            scaledBitmap = bitmap;
-        }
-
-        TLRPC.TL_fileLocation location = new TLRPC.TL_fileLocation();
-        location.volume_id = Integer.MIN_VALUE;
-        location.dc_id = Integer.MIN_VALUE;
-        TLRPC.PhotoSize size = new TLRPC.TL_photoSize();
-        size.location = location;
-        size.w = scaledBitmap.getWidth();
-        size.h = scaledBitmap.getHeight();
-        if (size.w <= 100 && size.h <= 100) {
-            size.type = "s";
-        } else if (size.w <= 320 && size.h <= 320) {
-            size.type = "m";
-        } else if (size.w <= 800 && size.h <= 800) {
-            size.type = "x";
-        } else if (size.w <= 1280 && size.h <= 1280) {
-            size.type = "y";
-        } else {
-            size.type = "w";
-        }
-
-        String fileName = "Vaishali"+location.volume_id + "_" + location.local_id + ".jpg";
-        final File cacheFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/", fileName);
-        FileOutputStream stream = new FileOutputStream(cacheFile);
-        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, quality, stream);
-            size.size = (int) stream.getChannel().size();
-        stream.close();
-        if (scaledBitmap != bitmap) {
-            scaledBitmap.recycle();
-        }
-
-        return size;
-    }
-
 }
