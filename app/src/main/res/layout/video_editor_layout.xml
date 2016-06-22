@@ -58,6 +58,7 @@
 
 
     <LinearLayout
+        android:background="#ffffff"
         android:gravity="center"
         android:layout_weight="1"
         android:layout_width="match_parent"
@@ -68,7 +69,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#f0f0f0"
+            android:textColor="#000000"
             android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
@@ -77,7 +78,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#bebebe"
+            android:textColor="#000000"
             android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
@@ -86,7 +87,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#f0f0f0"
+            android:textColor="#000000"
             android:textSize="15sp"
             android:layout_marginTop="10dp"
             android:layout_marginLeft="13dp"
@@ -96,27 +97,38 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#bebebe"
+            android:textColor="#000000"
             android:textSize="15sp"
             android:layout_marginLeft="13dp"
             android:layout_marginRight="13dp"
             android:id="@+id/edited_size"/>
 
-        <CheckBox
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_gravity="center"
+            android:layout_margin="2dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="8dp"
-            android:layout_marginRight="8dp"
-            android:layout_marginTop="6dp"
-            android:textColor="#f0f0f0"
-            android:textSize="15sp"
-            android:id="@+id/compress_video"/>
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#f0f0f0"
-            android:textSize="10sp"
-            android:id="@+id/trim_video"/>
+            android:orientation="horizontal"
+            >
+            <CheckBox
+                android:layout_weight="1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="8dp"
+                android:layout_marginRight="8dp"
+                android:layout_marginTop="6dp"
+                android:textColor="#000000"
+                android:textSize="15sp"
+                android:id="@+id/compress_video"/>
+            <Button
+                android:text="@string/trim"
+                android:layout_weight="1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:textColor="#000000"
+                android:textSize="10sp"
+                android:id="@+id/trim_video"/>
+        </LinearLayout>
 
     </LinearLayout>
 

@@ -11,159 +11,26 @@ package com.example.vaishaliarora.videotrimmersample;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
+import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.hardware.Sensor;
-import android.hardware.SensorManager;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.AudioTrack;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
-import android.media.MediaPlayer;
-import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Environment;
-import android.os.PowerManager;
-import android.provider.MediaStore;
 import android.util.Log;
+import android.view.View;
+import android.widget.Toast;
 
 import java.io.File;
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Random;
-import java.util.Timer;
 
-public class MediaController_new {
-
-   /* private native int startRecord(String path);
-    private native int writeFrame(ByteBuffer frame, int len);
-    private native void stopRecord();
-    private native int openOpusFile(String path);
-    private native int seekOpusFile(float position);
-    private native int isOpusFile(String path);
-    private native void closeOpusFile();
-    private native void readOpusFile(ByteBuffer buffer, int capacity, int[] args);
-    private native long getTotalPcmDuration();
-    public native byte[] getWaveform(String path);
-    public native byte[] getWaveform2(short[] array, int length);*/
-
-    public static int[] readArgs = new int[3];
-
-    public interface FileDownloadProgressListener {
-        void onFailedDownload(String fileName);
-        void onSuccessDownload(String fileName);
-        void onProgressDownload(String fileName, float progress);
-        void onProgressUpload(String fileName, float progress, boolean isEncrypted);
-        int getObserverTag();
-    }
-
-    private class AudioBuffer {
-        public AudioBuffer(int capacity) {
-            buffer = ByteBuffer.allocateDirect(capacity);
-            bufferBytes = new byte[capacity];
-        }
-
-        ByteBuffer buffer;
-        byte[] bufferBytes;
-        int size;
-        int finished;
-        long pcmOffset;
-    }
-
-    private static final String[] projectionPhotos = {
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.BUCKET_ID,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_TAKEN,
-            MediaStore.Images.Media.ORIENTATION
-    };
-
-    private static final String[] projectionVideo = {
-            MediaStore.Video.Media._ID,
-            MediaStore.Video.Media.BUCKET_ID,
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DATE_TAKEN
-    };
-
-    public static class AudioEntry {
-        public long id;
-        public String author;
-        public String title;
-        public String genre;
-        public int duration;
-        public String path;
-        public MessageObject messageObject;
-    }
-
-    public static class AlbumEntry {
-        public int bucketId;
-        public String bucketName;
-        public PhotoEntry coverPhoto;
-        public ArrayList<PhotoEntry> photos = new ArrayList<>();
-        public HashMap<Integer, PhotoEntry> photosByIds = new HashMap<>();
-        public boolean isVideo;
-
-        public AlbumEntry(int bucketId, String bucketName, PhotoEntry coverPhoto, boolean isVideo) {
-            this.bucketId = bucketId;
-            this.bucketName = bucketName;
-            this.coverPhoto = coverPhoto;
-            this.isVideo = isVideo;
-        }
-
-        public void addPhoto(PhotoEntry photoEntry) {
-            photos.add(photoEntry);
-            photosByIds.put(photoEntry.imageId, photoEntry);
-        }
-    }
-
-    public static class PhotoEntry {
-        public int bucketId;
-        public int imageId;
-        public long dateTaken;
-        public String path;
-        public int orientation;
-        public String thumbPath;
-        public String imagePath;
-        public boolean isVideo;
-        public CharSequence caption;
-
-        public PhotoEntry(int bucketId, int imageId, long dateTaken, String path, int orientation, boolean isVideo) {
-            this.bucketId = bucketId;
-            this.imageId = imageId;
-            this.dateTaken = dateTaken;
-            this.path = path;
-            this.orientation = orientation;
-            this.isVideo = isVideo;
-        }
-    }
-
-    public static class SearchImage {
-        public String id;
-        public String imageUrl;
-        public String thumbUrl;
-        public String localUrl;
-        public int width;
-        public int height;
-        public int size;
-        public int type;
-        public int date;
-        public String thumbPath;
-        public String imagePath;
-        public CharSequence caption;
-        public TLRPC.Document document;
-    }
+public class MediaController {
 
     public final static String MIME_TYPE = "video/avc";
     private final static int PROCESSOR_TYPE_OTHER = 0;
@@ -174,241 +41,35 @@ public class MediaController_new {
     private final static int PROCESSOR_TYPE_TI = 5;
     private final Object videoConvertSync = new Object();
 
-    private HashMap<Long, Long> typingTimes = new HashMap<>();
-
-    private SensorManager sensorManager;
-    private boolean ignoreProximity;
-    private PowerManager.WakeLock proximityWakeLock;
-    private Sensor proximitySensor;
-    private Sensor accelerometerSensor;
-    private Sensor linearSensor;
-    private Sensor gravitySensor;
-    private boolean raiseToEarRecord;
-    private boolean accelerometerVertical;
-    private int raisedToTop;
-    private int raisedToBack;
-    private int countLess;
-    private long timeSinceRaise;
-    private long lastTimestamp = 0;
-    private boolean proximityTouched;
-    private boolean proximityHasDifferentValues;
-    private float lastProximityValue = -100;
-    private boolean useFrontSpeaker;
-    private boolean inputFieldHasText;
-    private boolean allowStartRecord;
-    private boolean ignoreOnPause;
-    private boolean sensorsStarted;
-    private float previousAccValue;
-    private float[] gravity = new float[3];
-    private float[] gravityFast = new float[3];
-    private float[] linearAcceleration = new float[3];
-
-    private int hasAudioFocus;
-    private boolean callInProgress;
-    private int audioFocus = AUDIO_NO_FOCUS_NO_DUCK;
-    private boolean resumeAudioOnFocusGain;
-
-    private static final float VOLUME_DUCK = 0.2f;
-    private static final float VOLUME_NORMAL = 1.0f;
-    private static final int AUDIO_NO_FOCUS_NO_DUCK = 0;
-    private static final int AUDIO_NO_FOCUS_CAN_DUCK = 1;
-    private static final int AUDIO_FOCUSED  = 2;
-
     private ArrayList<VideoEditorActivity.DelayedMessage> videoConvertQueue = new ArrayList<>();
-    private final Object videoQueueSync = new Object();
     private boolean cancelCurrentVideoConversion = false;
     private boolean videoConvertFirstWrite = true;
-    private HashMap<String, MessageObject> generatingWaveform = new HashMap<>();
 
-    private boolean voiceMessagesPlaylistUnread;
-    private ArrayList<MessageObject> voiceMessagesPlaylist;
-    private HashMap<Integer, MessageObject> voiceMessagesPlaylistMap;
+    private static volatile MediaController Instance = null;
+    private static  boolean isVideoTrimmed = false;
 
-    public static final int AUTODOWNLOAD_MASK_PHOTO = 1;
-    public static final int AUTODOWNLOAD_MASK_AUDIO = 2;
-    public static final int AUTODOWNLOAD_MASK_VIDEO = 4;
-    public static final int AUTODOWNLOAD_MASK_DOCUMENT = 8;
-    public static final int AUTODOWNLOAD_MASK_MUSIC = 16;
-    public static final int AUTODOWNLOAD_MASK_GIF = 32;
-    public int mobileDataDownloadMask = 0;
-    public int wifiDownloadMask = 0;
-    public int roamingDownloadMask = 0;
-    private int lastCheckMask = 0;
-
-    private boolean saveToGallery = true;
-    private boolean autoplayGifs = true;
-    private boolean raiseToSpeak = true;
-    private boolean customTabs = true;
-    private boolean directShare = true;
-    private boolean shuffleMusic;
-    private int repeatMode;
-
-    private Runnable refreshGalleryRunnable;
-    public static AlbumEntry allPhotosAlbumEntry;
-
-    private HashMap<String, ArrayList<WeakReference<FileDownloadProgressListener>>> loadingFileObservers = new HashMap<>();
-    private HashMap<String, ArrayList<MessageObject>> loadingFileMessagesObservers = new HashMap<>();
-    private HashMap<Integer, String> observersByTag = new HashMap<>();
-    private boolean listenerInProgress = false;
-    private HashMap<String, FileDownloadProgressListener> addLaterArray = new HashMap<>();
-    private ArrayList<FileDownloadProgressListener> deleteLaterArray = new ArrayList<>();
-    private int lastTag = 0;
-
-    private boolean isPaused = false;
-    private MediaPlayer audioPlayer = null;
-    private AudioTrack audioTrackPlayer = null;
-    private int lastProgress = 0;
-    private MessageObject playingMessageObject;
-    private int playerBufferSize = 0;
-    private boolean decodingFinished = false;
-    private long currentTotalPcmDuration;
-    private long lastPlayPcm;
-    private int ignoreFirstProgress = 0;
-    private Timer progressTimer = null;
-    private final Object progressTimerSync = new Object();
-    private int buffersWrited;
-    private ArrayList<MessageObject> playlist = new ArrayList<>();
-    private ArrayList<MessageObject> shuffledPlaylist = new ArrayList<>();
-    private int currentPlaylistNum;
-    private boolean forceLoopCurrentPlaylist;
-    private boolean downloadingCurrentMessage;
-    private boolean playMusicAgain;
-
-    private AudioRecord audioRecorder = null;
-    private TLRPC.TL_document recordingAudio = null;
-    private File recordingAudioFile = null;
-    private long recordStartTime;
-    private long recordTimeCount;
-    private long recordDialogId;
-    private MessageObject recordReplyingMessageObject;
-    private boolean recordAsAdmin;
-
-    private ArrayList<AudioBuffer> usedPlayerBuffers = new ArrayList<>();
-    private ArrayList<AudioBuffer> freePlayerBuffers = new ArrayList<>();
-    private final Object playerSync = new Object();
-    private final Object playerObjectSync = new Object();
-    private short[] recordSamples = new short[1024];
-    private long samplesCount;
-
-    private final Object sync = new Object();
-
-    private ArrayList<ByteBuffer> recordBuffers = new ArrayList<>();
-    private ByteBuffer fileBuffer;
-    private int recordBufferSize;
-    private int sendAfterDone;
-
-
-    private long lastSecretChatEnterTime = 0;
-    private long lastSecretChatLeaveTime = 0;
-    private long lastMediaCheckTime = 0;
-    private TLRPC.EncryptedChat lastSecretChat = null;
-    private ArrayList<Long> lastSecretChatVisibleMessages = null;
-    private int startObserverToken = 0;
-
-    private String[] mediaProjections = null;
-
-    private static volatile MediaController_new Instance = null;
-
-    public static MediaController_new getInstance() {
-        MediaController_new localInstance = Instance;
+    public static MediaController getInstance() {
+        MediaController localInstance = Instance;
         if (localInstance == null) {
-            synchronized (MediaController_new.class) {
+            synchronized (MediaController.class) {
                 localInstance = Instance;
                 if (localInstance == null) {
-                    Instance = localInstance = new MediaController_new();
+                    Instance = localInstance = new MediaController();
                 }
             }
         }
         return localInstance;
     }
 
-    public MediaController_new() {
-        try {
-            recordBufferSize = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            if (recordBufferSize <= 0) {
-                recordBufferSize = 1280;
-            }
-            playerBufferSize = AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-            if (playerBufferSize <= 0) {
-                playerBufferSize = 3840;
-            }
-            for (int a = 0; a < 5; a++) {
-                ByteBuffer buffer = ByteBuffer.allocateDirect(4096);
-                buffer.order(ByteOrder.nativeOrder());
-                recordBuffers.add(buffer);
-            }
-            for (int a = 0; a < 3; a++) {
-                freePlayerBuffers.add(new AudioBuffer(playerBufferSize));
-            }
-        } catch (Exception e) {
-            Log.e("tmessages", e.getMessage());
-        }
-        try {
-            sensorManager = (SensorManager) MyApplication.applicationContext.getSystemService(Context.SENSOR_SERVICE);
-            linearSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-            gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
-            if (linearSensor == null || gravitySensor == null) {
-                Log.e("tmessages", "gravity or linear sensor not found");
-                accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                linearSensor = null;
-                gravitySensor = null;
-            }
-            proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-            PowerManager powerManager = (PowerManager) MyApplication.applicationContext.getSystemService(Context.POWER_SERVICE);
-            proximityWakeLock = powerManager.newWakeLock(0x00000020, "proximity");
-        } catch (Exception e) {
-            Log.e("tmessages", e.getMessage());
-        }
-        fileBuffer = ByteBuffer.allocateDirect(1920);
-
-        SharedPreferences preferences = MyApplication.applicationContext.getSharedPreferences("mainconfig", Activity.MODE_PRIVATE);
-        mobileDataDownloadMask = preferences.getInt("mobileDataDownloadMask", AUTODOWNLOAD_MASK_PHOTO | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC | (Build.VERSION.SDK_INT >= 11 ? AUTODOWNLOAD_MASK_GIF : 0));
-        wifiDownloadMask = preferences.getInt("wifiDownloadMask", AUTODOWNLOAD_MASK_PHOTO | AUTODOWNLOAD_MASK_AUDIO | AUTODOWNLOAD_MASK_MUSIC | (Build.VERSION.SDK_INT >= 11 ? AUTODOWNLOAD_MASK_GIF : 0));
-        roamingDownloadMask = preferences.getInt("roamingDownloadMask", 0);
-        saveToGallery = preferences.getBoolean("save_gallery", false);
-        autoplayGifs = preferences.getBoolean("autoplay_gif", true) && Build.VERSION.SDK_INT >= 11;
-        raiseToSpeak = preferences.getBoolean("raise_to_speak", true) && Build.VERSION.SDK_INT >= 11;
-        customTabs = preferences.getBoolean("custom_tabs", true);
-        directShare = preferences.getBoolean("direct_share", true);
-        shuffleMusic = preferences.getBoolean("shuffleMusic", false);
-        repeatMode = preferences.getInt("repeatMode", 0);
-
-
-        BroadcastReceiver networkStateReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-            }
-        };
-        IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        MyApplication.applicationContext.registerReceiver(networkStateReceiver, filter);
-
-
-
-        if (Build.VERSION.SDK_INT >= 16) {
-            mediaProjections = new String[]{
-                    MediaStore.Images.ImageColumns.DATA,
-                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.DATE_TAKEN,
-                    MediaStore.Images.ImageColumns.TITLE,
-                    MediaStore.Images.ImageColumns.WIDTH,
-                    MediaStore.Images.ImageColumns.HEIGHT
-            };
-        } else {
-            mediaProjections = new String[]{
-                    MediaStore.Images.ImageColumns.DATA,
-                    MediaStore.Images.ImageColumns.DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
-                    MediaStore.Images.ImageColumns.DATE_TAKEN,
-                    MediaStore.Images.ImageColumns.TITLE
-            };
-        }
-
+    public MediaController() {
     }
 
-
-    public void scheduleVideoConvert(VideoEditorActivity.DelayedMessage messageObject) {
+    private  View mView;
+    private static Context ctx;
+    public void scheduleVideoConvert(VideoEditorActivity.DelayedMessage messageObject, View view, Context context) {
         videoConvertQueue.add(messageObject);
+        mView = view;
+        ctx = context;
         if (videoConvertQueue.size() == 1) {
             startVideoConvertFromQueue();
         }
@@ -591,6 +252,8 @@ public class MediaController_new {
         return -1;
     }
 
+    private static ProgressDialog progressDialog = null;
+
     private static class VideoConvertRunnable implements Runnable {
 
         private VideoEditorActivity.DelayedMessage messageObject;
@@ -601,10 +264,22 @@ public class MediaController_new {
 
         @Override
         public void run() {
-            MediaController_new.getInstance().convertVideo(messageObject);
+            MediaController.getInstance().convertVideo(messageObject);
         }
 
         public static void runConversion(final VideoEditorActivity.DelayedMessage  obj) {
+
+            if (ctx != null) {
+                try {
+                    progressDialog = ProgressDialog.show(ctx, "Please wait ...", "Trimming the video ...", true);
+                    progressDialog.setCanceledOnTouchOutside(false);
+                    progressDialog.setCancelable(false);
+                    progressDialog.show();
+                } catch (Exception e) {
+                    Log.e("Vaishali", "Exception in initialisising progress dialog == "+e.toString());
+                }
+            }
+
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -614,7 +289,7 @@ public class MediaController_new {
                         th.start();
                         th.join();
                     } catch (Exception e) {
-                        Log.e("tmessages", e.getMessage());
+                        Log.e("tmessages", e.toString());
                     }
                 }
             }).start();
@@ -633,7 +308,7 @@ public class MediaController_new {
 
     @TargetApi(16)
     private boolean convertVideo(final VideoEditorActivity.DelayedMessage messageObject) {
-        Log.e("Vaishali", "Start convertVideo");
+       Log.e("Vaishali", "Start convertVideo");
         String videoPath = messageObject.videoEditedInfo.originalPath;
         long startTime = messageObject.videoEditedInfo.startTime;
         long endTime = messageObject.videoEditedInfo.endTime;
@@ -646,9 +321,9 @@ public class MediaController_new {
         int rotateRender = 0;
         int randono = new Random().nextInt();
 
-        File cacheFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/"+"Vaishali"+ randono + ".mp4");
-        Log.e("Vaishali", "Start Time == " + startTime + "\n endTime == " + endTime + " \nResult height == " + resultHeight + " \nResult Width == " + resultWidth + "\nRotation Value == " + rotationValue
-                + "\n Original Width == " + originalWidth + "\n Original Heoght ==" + originalHeight + "\n Bitrate == " + bitrate);
+        final File cacheFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/temp/"+"Vaishali"+ randono + ".mp4");
+       Log.e("Vaishali", "Start Time == " + startTime + "\n endTime == " + endTime + " \nResult height == " + resultHeight + " \nResult Width == " + resultWidth + "\nRotation Value == " + rotationValue
+               + "\n Original Width == " + originalWidth + "\n Original Heoght ==" + originalHeight + "\n Bitrate == " + bitrate);
 
         if (Build.VERSION.SDK_INT < 18 && resultHeight > resultWidth && resultWidth != originalWidth && resultHeight != originalHeight) {
             int temp = resultHeight;
@@ -683,7 +358,7 @@ public class MediaController_new {
         if (!inputFile.canRead() || !isPreviousOk) {
             didWriteData(messageObject, cacheFile, true, true);
             preferences.edit().putBoolean("isPreviousOk", true).commit();
-            Log.e("Vaishali", "InputFile cannot be read");
+           Log.e("Vaishali", "InputFile cannot be read");
             return false;
         }
 
@@ -694,12 +369,12 @@ public class MediaController_new {
         long time = System.currentTimeMillis();
 
         if (resultWidth != 0 && resultHeight != 0) {
-            Log.e("Vaishali", "Res width and height not equals to 0");
+           Log.e("Vaishali", "Res width and height not equals to 0");
             MP4Builder mediaMuxer = null;
             MediaExtractor extractor = null;
 
             try {
-                Log.e("Vaishali", "MediaCoded initialisation");
+               Log.e("Vaishali", "MediaCoded initialisation");
                 MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
                 Mp4Movie movie = new Mp4Movie();
                 movie.setCacheFile(cacheFile);
@@ -712,11 +387,11 @@ public class MediaController_new {
                 checkConversionCanceled();
 
                 if (resultWidth != originalWidth || resultHeight != originalHeight) {
-                    Log.e("Vaishali", "Res w&h and original are different");
+                   Log.e("Vaishali", "Res w&h and original are different");
                     int videoIndex;
                     videoIndex = selectTrack(extractor, false);
                     if (videoIndex >= 0) {
-                        Log.e("Vaishali", "VideoIndex>=0");
+                       Log.e("Vaishali", "VideoIndex>=0");
                         MediaCodec decoder = null;
                         MediaCodec encoder = null;
                         InputSurface inputSurface = null;
@@ -734,11 +409,11 @@ public class MediaController_new {
                             int processorType = PROCESSOR_TYPE_OTHER;
                             String manufacturer = Build.MANUFACTURER.toLowerCase();
                             if (Build.VERSION.SDK_INT < 18) {
-                                Log.e("Vaishali", "Build Version <18");
+                               Log.e("Vaishali", "Build Version <18");
                                 MediaCodecInfo codecInfo = selectCodec(MIME_TYPE);
                                 colorFormat = selectColorFormat(codecInfo, MIME_TYPE);
                                 if (colorFormat == 0) {
-                                    Log.e("Vaishali", "Color format == 0");
+                                   Log.e("Vaishali", "Color format == 0");
                                     throw new RuntimeException("no supported color format");
                                 }
                                 String codecName = codecInfo.getName();
@@ -759,13 +434,13 @@ public class MediaController_new {
                                 } else if (codecName.equals("OMX.TI.DUCATI1.VIDEO.H264E")) {
                                     processorType = PROCESSOR_TYPE_TI;
                                 }
-                                Log.e("Vaishali", "Codec name == " + codecInfo.getName());
+                               Log.e("Vaishali", "Codec name == " + codecInfo.getName());
                                 Log.e("tmessages", "codec = " + codecInfo.getName() + " manufacturer = " + manufacturer + "device = " + Build.MODEL);
                             } else {
-                                Log.e("Vaishali", "Build Version >18");
+                               Log.e("Vaishali", "Build Version >18");
                                 colorFormat = MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface;
                             }
-                            Log.e("Vaishali", "colorFormat = " + colorFormat);
+                           Log.e("Vaishali", "colorFormat = " + colorFormat);
 
                             int resultHeightAligned = resultHeight;
                             int padding = 0;
@@ -783,11 +458,11 @@ public class MediaController_new {
                                     bufferSize += padding;
                                 }
                             } else if (processorType == PROCESSOR_TYPE_TI) {
-                                //resultHeightAligned = 368;
-                                //bufferSize = resultWidth * resultHeightAligned * 3 / 2;
-                                //resultHeightAligned += (16 - (resultHeight % 16));
-                                //padding = resultWidth * (resultHeightAligned - resultHeight);
-                                //bufferSize += padding * 5 / 4;
+                                resultHeightAligned = 368;
+                                bufferSize = resultWidth * resultHeightAligned * 3 / 2;
+                                resultHeightAligned += (16 - (resultHeight % 16));
+                                padding = resultWidth * (resultHeightAligned - resultHeight);
+                                bufferSize += padding * 5 / 4;
                             } else if (processorType == PROCESSOR_TYPE_MTK) {
                                 if (manufacturer.equals("baidu")) {
                                     resultHeightAligned += (16 - (resultHeight % 16));
@@ -1019,13 +694,19 @@ public class MediaController_new {
                                             }
                                             if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                                                 decoderOutputAvailable = false;
-                                                Log.e("tmessages", "decoder stream end");
+                                                Log.e("Vaishali", "decoder stream end");
+                                                isVideoTrimmed = true;
                                                 if (Build.VERSION.SDK_INT >= 18) {
+                                                    Log.e("Vaishali", "STart  version >=18");
                                                     encoder.signalEndOfInputStream();
+                                                    Log.e("Vaishali", "End version >=18");
                                                 } else {
+                                                    Log.e("Vaishali", "version < 18");
                                                     int inputBufIndex = encoder.dequeueInputBuffer(TIMEOUT_USEC);
                                                     if (inputBufIndex >= 0) {
+                                                        Log.e("Vaishali", "inputBufIndex >=0");
                                                         encoder.queueInputBuffer(inputBufIndex, 0, 1, info.presentationTimeUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                                                        Log.e("Vaishali", "endssss");
                                                     }
                                                 }
                                             }
@@ -1034,13 +715,28 @@ public class MediaController_new {
                                 }
                             }
                             if (videoTime != -1) {
+                                Log.e("Vaishali", "LAST == videoTime != 1");
                                 videoStartTime = videoTime;
                             }
-                        } catch (Exception e) {
-                            Log.e("Vaishali", "Exception == == "+e.getMessage());
-                            Log.e("tmessages", e.getMessage());
-                            error = true;
+                        } catch(final Exception e){
+                            if( e instanceof android.media.MediaCodec.CodecException ) {
+                                Log.e("Vaishali", "Exception == == " + e.toString());
+                                error = true;
+                                mView.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (progressDialog != null) {
+                                            progressDialog.dismiss();
+                                        }
+                                        if (cacheFile.exists()) {
+                                            cacheFile.delete();
+                                        }
+                                        Toast.makeText(MyApplication.applicationContext, "Error while trimming the video. Exception == " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                            }
                         }
+
 
                         extractor.unselectTrack(videoIndex);
 
@@ -1058,25 +754,50 @@ public class MediaController_new {
                             encoder.stop();
                             encoder.release();
                         }
-
+                        Log.e("Vaishali", "Releasing everything!!");
                         checkConversionCanceled();
                     }
                 } else {
-                    Log.e("Vaishali", "!VideoIndex>=0..in else part");
+                   Log.e("Vaishali", "!VideoIndex>=0..in else part");
                     long videoTime = readAndWriteTrack(messageObject, extractor, mediaMuxer, info, startTime, endTime, cacheFile, false);
                     if (videoTime != -1) {
-                        Log.e("Vaishali", "VideoTime != -1");
+                       Log.e("Vaishali", "VideoTime != -1");
                         videoStartTime = videoTime;
                     }
+                    isVideoTrimmed = true;
                 }
                 if (!error) {
+                    Log.e("Vaishali", "Not error");
                     readAndWriteTrack(messageObject, extractor, mediaMuxer, info, videoStartTime, endTime, cacheFile, true);
+                    Log.e("Vaishali", "Read write track");
                 }
-                Log.e("Vaishali", "MediaCodec Exit");
-            } catch (Exception e) {
+               Log.e("Vaishali", "MediaCodec Exit");
+                if(isVideoTrimmed) {
+                    mView.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (progressDialog != null) {
+                                progressDialog.dismiss();
+                            }
+                            Toast.makeText(MyApplication.applicationContext, "Trimmed Video", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            } catch (final Exception e) {
                 error = true;
-                Log.e("Vaishali", "Exception2 == == "+e.getMessage());
-                Log.e("tmessages", e.getMessage());
+                Log.e("Vaishali", "Exception2 == == "+e.toString());
+                mView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(progressDialog != null){
+                            progressDialog.dismiss();
+                        }
+                        if(cacheFile.exists()){
+                            cacheFile.delete();
+                        }
+                        Toast.makeText(MyApplication.applicationContext, "Error while trimming the video. Exception == " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                });
             } finally {
                 if (extractor != null) {
                     extractor.release();
@@ -1088,7 +809,7 @@ public class MediaController_new {
                         Log.e("tmessages", e.getMessage());
                     }
                 }
-                Log.e("tmessages", "time = " + (System.currentTimeMillis() - time));
+                Log.e("Vaishali", "time = " + (System.currentTimeMillis() - time));
             }
         } else {
             preferences.edit().putBoolean("isPreviousOk", true).commit();

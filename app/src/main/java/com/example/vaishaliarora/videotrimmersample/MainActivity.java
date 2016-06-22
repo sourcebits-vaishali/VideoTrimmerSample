@@ -28,8 +28,11 @@ public class MainActivity extends Activity {
         (findViewById(R.id.choose)).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI);
-                startActivityForResult(i, SELECT_VIDEO);
+                Intent mediaChooser = new Intent(Intent.ACTION_GET_CONTENT);
+                mediaChooser.setType("video/*");
+             /*   startActivityForResult(mediaChooser, 1);
+                Intent i = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI);*/
+                startActivityForResult(mediaChooser, SELECT_VIDEO);
             }
         });
 

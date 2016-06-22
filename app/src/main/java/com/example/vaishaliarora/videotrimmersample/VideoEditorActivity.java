@@ -150,8 +150,8 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
             return;
         }
         Bundle bundle = getIntent().getExtras();
-//        videoPath = bundle.getString(Util.VIDEO_PATH);
-        videoPath = "/storage/emulated/0/DCIM/Camera/20160621_112826.mp4";
+        videoPath = bundle.getString(Util.VIDEO_PATH);
+//        videoPath = "/storage/emulated/0/DCIM/Camera/20160621_112826.mp4";
 //        videoPath = Environment.getExternalStorageDirectory().getAbsolutePath()+"/DCIM/sample2.mp4";
 
         Log.d("Vaishali ", "Path == " + videoPath);
@@ -312,6 +312,13 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
 
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+//        fixLayoutInternal();
+    }
+
+
     private void trimVideo(String videoPath, long startTime, long endTime, int resultWidth, int resultHeight, int rotationValue, int originalWidth, int originalHeight, int bitrate, long estimatedSize, long estimatedDuration) {
         VideoEditedInfo videoEditedInfo = new VideoEditedInfo();
         videoEditedInfo.startTime = startTime;
@@ -329,7 +336,7 @@ public class VideoEditorActivity extends Activity implements TextureView.Surface
         delayedMessage.type = 1;
 
         delayedMessage.videoEditedInfo = videoEditedInfo;
-        MediaController.getInstance().scheduleVideoConvert(delayedMessage);
+        MediaController.getInstance().scheduleVideoConvert(delayedMessage, playButton, this);
     }
 
     @Override
